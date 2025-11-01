@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: etl-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - airflow
+
+  postgres:
+    image: postgres:13
+    container_name: etl-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - airflow
+
+  mysql:
+    image: mysql:8
+    container_name: etl-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: olist
+    command: --local-infile=1
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./data:/tmp/dataset
+      - ./load_dataset_into_mysql:/tmp/sql
+    networks:
+      - airflow
+
+  airflow:
+    image: apache/airflow:2.9.1
+    container_name: etl-airflow
+    depends_on:
+      - postgres
+      - mysql
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      _PIP_ADDITIONAL_REQUIREMENTS: pandas mysql-connector-python psycopg2-binary
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+        airflow db init &&
+        airflow users create --username admin --password admin --firstname admin --lastname admin --role Admin --email admin@example.com &&
+        airflow webserver & airflow scheduler
+      "
+    networks:
+      - airflow
+
+networks:
+  airflow:
+    driver: bridge

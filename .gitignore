@@ -1,0 +1,13 @@
+mysql_data/
+postgres_data/
+
+*.log
+*.tmp
+*.sock
+*.pid
+binlog.index
+
+__pycache__/
+.env
+.vscode/
+.idea/
